@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageType {
+  image
+  audio
+  text
+  url
+}
+
+enum Role {
+  user
+  admin
+}
+
+model Users {
+  id                    String                 @id @default(cuid())
+  phone                 String?
+  email                 String                 @unique
+  password              String
+  first_name            String
+  last_name             String
+  role                  Role                   @default(user)
+  verification_code     String?
+  is_active             Boolean                @default(false)
+  is_reported           Boolean                @default(false)
+  is_blocked            Boolean                @default(false)
+  conversation          Conversations[]
+  messages              Messages[]
+  deleted_conversations DeletedConversations[]
+  deleted_messages      DeletedMessages[]
+  created_at            DateTime               @default(now())
+  updated_at            DateTime               @updatedAt
+}
+
+model Conversations {
+  id                    String                 @id @default(cuid())
+  title                 String
+  user                  Users                  @relation(fields: [creator_id], references: [id])
+  creator_id            String                 @unique
+  channel_id            String?
+  messages              Messages[]
+  deleted_conversations DeletedConversations[]
+  created_at            DateTime               @default(now())
+  updated_at            DateTime               @updatedAt
+  deleted_at            DateTime?
+}
+
+model Messages {
+  id                   String            @id @default(cuid())
+  conversation         Conversations     @relation(fields: [conversation_id], references: [id])
+  conversation_id      String            @unique
+  sender               Users             @relation(fields: [sender_id], references: [id])
+  sender_id            String            @unique
+  message_type         MessageType       @default(text)
+  message              String
+  attachment_thumb_url String?
+  attachment_url       String?
+  deleted_messages     DeletedMessages[]
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+  deleted_at           DateTime?
+}
+
+model DeletedConversations {
+  id              String        @id @default(cuid())
+  conversation    Conversations @relation(fields: [conversation_id], references: [id])
+  conversation_id String        @unique
+  sender          Users         @relation(fields: [sender_id], references: [id])
+  sender_id       String        @unique
+  created_at      DateTime      @default(now())
+}
+
+model DeletedMessages {
+  id         String   @id @default(cuid())
+  message    Messages @relation(fields: [message_id], references: [id])
+  message_id String   @unique
+  sender     Users    @relation(fields: [sender_id], references: [id])
+  sender_id  String   @unique
+  created_at DateTime @default(now())
+}
