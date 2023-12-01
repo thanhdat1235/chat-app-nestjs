@@ -11,7 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket, Server } from 'socket.io';
 import { UserService } from '../users/users.service';
-import { Prisma, Conversations } from '@prisma/client';
+import { Prisma, Conversations, Participants } from '@prisma/client';
 import { parse } from 'cookie';
 import { WsException } from '@nestjs/websockets';
 import { emit } from 'process';
@@ -86,12 +86,37 @@ export class ChatGateway implements OnGatewayInit, OnGatewayDisconnect {
   @SubscribeMessage('send-message')
   async handleSendMessage(client: Socket, payload): Promise<void> {
     const user = await this.getDataUserFromCookie(client);
+    let existedConversation: Conversations = null;
     try {
-      const newConversation = await this.chatService.createConversation(
+      const conversationByUserID =
+        await this.chatService.findConversationByUserID(user.id);
+      if (!conversationByUserID) {
+        const newConversation = await this.chatService.createConversation(
+          user.id,
+          user.first_name + user.last_name,
+        );
+        existedConversation = newConversation;
+      } else {
+        existedConversation = conversationByUserID;
+      }
+
+      // const participantByUserIDvsConversationID =
+      //   await this.chatService.findParticipantByUserIDvsConversationID(
+      //     user.id,
+      //     existedConversation.id,
+      //   );
+
+      // if (participantByUserIDvsConversationID.length < 1) {
+      await this.chatService.createParticipant(user.id, existedConversation.id);
+      // }
+
+      await this.chatService.createMessage(
         user.id,
-        user.first_name + user.last_name,
+        existedConversation.id,
+        payload,
       );
-      await this.server.emit('repMessage', payload);
+
+      this.server.emit('repMessage', payload);
     } catch (error) {
       throw new HttpException(error, HttpStatus.BAD_REQUEST);
     }

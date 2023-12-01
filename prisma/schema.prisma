@@ -37,6 +37,7 @@ model Users {
   is_blocked            Boolean                @default(false)
   conversation          Conversations[]
   messages              Messages[]
+  participants          Participants[]
   deleted_conversations DeletedConversations[]
   deleted_messages      DeletedMessages[]
   created_at            DateTime               @default(now())
@@ -50,18 +51,31 @@ model Conversations {
   creator_id            String                 @unique
   channel_id            String?
   messages              Messages[]
+  participants          Participants[]
   deleted_conversations DeletedConversations[]
   created_at            DateTime               @default(now())
   updated_at            DateTime               @updatedAt
   deleted_at            DateTime?
+
+  @@index([creator_id], name: "creator_id_index")
+}
+
+model Participants {
+  id              String        @id @default(cuid())
+  conversation    Conversations @relation(fields: [conversation_id], references: [id])
+  conversation_id String
+  user            Users         @relation(fields: [users_id], references: [id])
+  users_id        String
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
 }
 
 model Messages {
   id                   String            @id @default(cuid())
   conversation         Conversations     @relation(fields: [conversation_id], references: [id])
-  conversation_id      String            @unique
+  conversation_id      String
   sender               Users             @relation(fields: [sender_id], references: [id])
-  sender_id            String            @unique
+  sender_id            String
   message_type         MessageType       @default(text)
   message              String
   attachment_thumb_url String?
@@ -70,22 +84,25 @@ model Messages {
   created_at           DateTime          @default(now())
   updated_at           DateTime          @updatedAt
   deleted_at           DateTime?
+
+  @@index([conversation_id], name: "conversation_id_index")
+  @@index([sender_id], name: "sender_id_index")
 }
 
 model DeletedConversations {
   id              String        @id @default(cuid())
   conversation    Conversations @relation(fields: [conversation_id], references: [id])
-  conversation_id String        @unique
+  conversation_id String
   sender          Users         @relation(fields: [sender_id], references: [id])
-  sender_id       String        @unique
+  sender_id       String
   created_at      DateTime      @default(now())
 }
 
 model DeletedMessages {
   id         String   @id @default(cuid())
   message    Messages @relation(fields: [message_id], references: [id])
-  message_id String   @unique
+  message_id String
   sender     Users    @relation(fields: [sender_id], references: [id])
-  sender_id  String   @unique
+  sender_id  String
   created_at DateTime @default(now())
 }

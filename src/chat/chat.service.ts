@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { UpdateChatDto } from './dto/update-chat.dto';
-import { Conversations, Messages, Prisma } from '@prisma/client';
+import { Conversations, Messages, Prisma, Participants } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -29,6 +29,31 @@ export class ChatService {
     }
   }
 
+  async createParticipant(
+    userId: string,
+    conversationId: string,
+  ): Promise<Participants> {
+    try {
+      const newParticipant = await this.prisma.participants.create({
+        data: {
+          conversation: {
+            connect: {
+              id: conversationId,
+            },
+          },
+          user: {
+            connect: {
+              id: userId,
+            },
+          },
+        },
+      });
+      return newParticipant;
+    } catch (error) {
+      throw new HttpException(error, HttpStatus.BAD_REQUEST);
+    }
+  }
+
   async findConversationByUserID(userID: string): Promise<Conversations> {
     try {
       return await this.prisma.conversations.findUnique({
@@ -41,10 +66,43 @@ export class ChatService {
     }
   }
 
-  async createMessage(message: Prisma.MessagesCreateInput): Promise<Messages> {
+  async findParticipantByUserIDvsConversationID(
+    userID: string,
+    conversationID: string,
+  ): Promise<Participants[]> {
     try {
-      const newMessage = await this.prisma.messages.create({ data: message });
-      return newMessage;
+      return await this.prisma.participants.findMany({
+        where: {
+          users_id: userID,
+          conversation_id: conversationID,
+        },
+      });
+    } catch (error) {
+      throw new HttpException(error, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  async createMessage(
+    senderID: string,
+    conversationID: string,
+    message: string,
+  ): Promise<Messages> {
+    try {
+      return await this.prisma.messages.create({
+        data: {
+          sender: {
+            connect: {
+              id: senderID,
+            },
+          },
+          conversation: {
+            connect: {
+              id: conversationID,
+            },
+          },
+          message: message,
+        },
+      });
     } catch (error) {
       throw new HttpException(error, HttpStatus.BAD_REQUEST);
     }
